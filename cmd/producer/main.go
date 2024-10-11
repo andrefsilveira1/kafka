@@ -9,8 +9,19 @@ import (
 
 func main() {
 	fmt.Println("Starting server")
+	deliveryChan := make(chan kafka.Event)
+
 	producer := NewKafkaProducer()
-	Publish("mensagem", "teste", producer, nil)
+	Publish("mensagem", "teste", producer, nil, deliveryChan)
+	e := <-deliveryChan
+	msg := e.(*kafka.Message)
+	if msg.TopicPartition.Error != nil {
+		fmt.Println("Fail to send message")
+	} else {
+		fmt.Println("Message sent: ", msg.TopicPartition)
+	}
+
+	producer.Flush(1000)
 
 }
 
@@ -26,14 +37,14 @@ func NewKafkaProducer() *kafka.Producer {
 	return p
 }
 
-func Publish(msg string, topic string, producer *kafka.Producer, key []byte) error {
+func Publish(msg string, topic string, producer *kafka.Producer, key []byte, deliveryChan chan kafka.Event) error {
 	message := &kafka.Message{
 		Value:          []byte(msg),
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Key:            key,
 	}
 
-	err := producer.Produce(message, nil)
+	err := producer.Produce(message, deliveryChan)
 	if err != nil {
 		return err
 	}
