@@ -13,15 +13,16 @@ func main() {
 
 	producer := NewKafkaProducer()
 	Publish("mensagem", "teste", producer, nil, deliveryChan)
-	e := <-deliveryChan
-	msg := e.(*kafka.Message)
-	if msg.TopicPartition.Error != nil {
-		fmt.Println("Fail to send message")
-	} else {
-		fmt.Println("Message sent: ", msg.TopicPartition)
-	}
+	go DeliveryReport(deliveryChan)
+	// e := <-deliveryChan
+	// msg := e.(*kafka.Message)
+	// if msg.TopicPartition.Error != nil {
+	// 	fmt.Println("Fail to send message")
+	// } else {
+	// 	fmt.Println("Message sent: ", msg.TopicPartition)
+	// }
 
-	producer.Flush(1000)
+	// producer.Flush(1000)
 
 }
 
@@ -51,4 +52,17 @@ func Publish(msg string, topic string, producer *kafka.Producer, key []byte, del
 
 	return nil
 
+}
+
+func DeliveryReport(deliveryChan chan kafka.Event) {
+	for e := range deliveryChan {
+		switch ev := e.(type) {
+		case *kafka.Message:
+			if ev.TopicPartition.Error != nil {
+				fmt.Println("Fail to send message")
+			} else {
+				fmt.Println("Message sent: ", ev.TopicPartition)
+			}
+		}
+	}
 }
